@@ -1,4 +1,4 @@
-# Stock Price Prediction Project
+# Stock Price Analysis and Prediction
 
 ## Overview
 This project implements multiple machine learning models to predict stock prices for the last 10 data points. It provides a web interface to visualize predictions and compare model performance using R² scores.
