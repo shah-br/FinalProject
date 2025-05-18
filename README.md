@@ -2,6 +2,9 @@
 
 ## Overview
 This project implements multiple machine learning models to predict stock prices for the last 10 data points. It provides a web interface to visualize predictions and compare model performance using R² scores.
+![image](https://github.com/user-attachments/assets/4600c569-9f57-4bdc-8f92-7bf5492f0ac8)
+![image](https://github.com/user-attachments/assets/faf8b332-5622-43ea-980c-ce7c05c98ed0)
+
 
 ## Models Implemented
 - **Linear Regression**
