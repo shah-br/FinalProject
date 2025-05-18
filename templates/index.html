@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Begin Page Content -->
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <h1 class="h3 mb-4 text-gray-800 pt-3">Stock Price Prediction</h1>
+
+    <!-- Content Row -->
+    <div class="row">
+        <!-- Stock Selection Card -->
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Select Stock</h6>
+                </div>
+                <div class="card-body">
+                    <form id="predictionForm">
+                        <div class="form-group">
+                            <label for="stock-select">Choose a stock:</label>
+                            <select class="form-control" id="stock" name="stock">
+                                {% for stock in stocks %}
+                                <option value="{{ stock }}">{{ stock }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Predict</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prediction Results Card -->
+        <div class="col-xl-8 col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Prediction Results</h6>
+                </div>
+                <div class="card-body">
+                    <div id="prediction-results" style="display: none;">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>R2 Score (R²)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="model-results">
+                                    <!-- Will be populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="chart-container" style="position: relative; height:50vh; width:100%">
+                            <canvas id="prediction-chart"></canvas>
+                        </div>
+                    </div>
+                    <div id="loading" style="display: none;">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let predictionChart = null;
+
+document.getElementById('predictionForm').onsubmit = function(e) {
+    e.preventDefault();
+    
+    // Show loading state
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('prediction-results').style.display = 'none';
+    
+    // Destroy previous chart if it exists
+    if (predictionChart) {
+        predictionChart.destroy();
+    }
+
+    fetch('/predict', {
+        method: 'POST',
+        body: new FormData(this)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log(data);
+            const predictions = data.prediction;
+            
+            // Create array of models with their accuracies
+            const modelResults = [
+                { name: 'Linear Regression', score: data.scores.linear_regression },
+                { name: 'Random Forest', score: data.scores.random_forest },
+                { name: 'KNN', score: data.scores.knn },
+                { name: 'Decision Tree', score: data.scores.decision_tree },
+                { name: 'LSTM', score: data.scores.lstm }
+            ];
+
+            // Sort models by accuracy (highest to lowest)
+            modelResults.sort((a, b) => b.score - a.score);
+
+            // Clear existing table content
+            const tbody = document.getElementById('model-results');
+            tbody.innerHTML = '';
+
+            // Add sorted results to table
+            modelResults.forEach(model => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${model.name}</td>
+                    <td>${model.score.toFixed(2)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Create the chart
+            const ctx = document.getElementById('prediction-chart').getContext('2d');
+            predictionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.dates.test_dates,
+                    datasets: [
+                        {
+                            label: 'Actual Prices',
+                            data: data.actual_prices,
+                            borderColor: 'rgb(0, 0, 0)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                        },
+                        {
+                            label: 'Linear Regression',
+                            data: predictions.linear_regression,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            pointRadius: 3,
+                        },
+                        {
+                            label: 'Random Forest',
+                            data: predictions.random_forest,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            pointRadius: 3,
+                        },
+                        {
+                            label: 'KNN',
+                            data: predictions.knn,
+                            borderColor: 'rgb(255, 205, 86)',
+                            backgroundColor: 'rgba(255, 205, 86, 0.2)',
+                            pointRadius: 3,
+                        },
+                        {
+                            label: 'Decision Tree',
+                            data: predictions.decision_tree,
+                            borderColor: 'rgb(54, 162, 235)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            pointRadius: 3,
+                        },
+                        {
+                            label: 'LSTM',
+                            data: predictions.lstm,
+                            borderColor: 'rgb(153, 102, 255)',
+                            backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                            pointRadius: 3,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Stock Price Predictions vs Actual Values'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            },
+                            ticks: {
+                                ticks: {
+                                    maxTicksLimit: 30,
+                                    autoSkip: true,
+                                    callback: function(val, index, ticks) {
+                                        // Use 'val' as index into labels
+                                        const label = this.chart.data.labels[val];
+                                        const date = new Date(label);
+                                        if (isNaN(date.getTime())) return '';
+
+                                        return date.toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        });
+                                    }
+                                }
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Price'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Show results
+            document.getElementById('prediction-results').style.display = 'block';
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while fetching predictions');
+    })
+    .finally(() => {
+        document.getElementById('loading').style.display = 'none';
+    });
+};
+</script>
+{% endblock %}
